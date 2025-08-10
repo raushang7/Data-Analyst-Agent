@@ -38,15 +38,27 @@ class VisualizationGenerator:
             Base64 encoded image as data URI or None if failed
         """
         try:
+            logger.info(f"Creating visualization for question: {question}")
+            logger.info(f"Data context keys: {list(data_context.keys())}")
+            
             question_lower = question.lower()
-            if 'scatterplot' in question_lower or ('plot' in question_lower and 'rank' in question_lower and 'peak' in question_lower):
-                return self._create_scatterplot(question, data_context)
-            elif 'plot' in question_lower and ('year' in question_lower or 'delay' in question_lower):
-                return self._create_time_series_plot(question, data_context)
+            # Check for time series plot first (year + delay combination)
+            if 'plot' in question_lower and ('year' in question_lower and 'delay' in question_lower):
+                result = self._create_time_series_plot(question, data_context)
+                logger.info(f"Time series result type: {type(result)}, length: {len(result) if result else 'None'}")
+                return result
+            elif 'scatterplot' in question_lower or ('plot' in question_lower and 'rank' in question_lower and 'peak' in question_lower):
+                result = self._create_scatterplot(question, data_context)
+                logger.info(f"Scatterplot result type: {type(result)}, length: {len(result) if result else 'None'}")
+                return result
             elif any(word in question_lower for word in ['histogram', 'bar', 'chart']):
-                return self._create_bar_chart(question, data_context)
+                result = self._create_bar_chart(question, data_context)
+                logger.info(f"Bar chart result type: {type(result)}, length: {len(result) if result else 'None'}")
+                return result
             else:
-                return self._create_scatterplot(question, data_context)
+                result = self._create_scatterplot(question, data_context)
+                logger.info(f"Default scatterplot result type: {type(result)}, length: {len(result) if result else 'None'}")
+                return result
         except Exception as e:
             logger.error(f"Failed to create visualization: {e}")
             return None
@@ -114,23 +126,32 @@ class VisualizationGenerator:
     def _create_time_series_plot(self, question: str, data_context: Dict[str, Any]) -> Optional[str]:
         """Create time series plot"""
         try:
+            logger.info("Creating time series plot...")
             main_data = self._find_main_dataframe(data_context)
             if main_data is None:
+                logger.error("No main dataframe found")
                 return None
+            
+            logger.info(f"Main dataframe shape: {main_data.shape}")
+            logger.info(f"Main dataframe columns: {list(main_data.columns)}")
             
             # Look for year and delay data
             year_col = self._find_year_column(main_data)
+            logger.info(f"Year column: {year_col}")
             
             # Calculate delays if needed
             delay_data = None
             if 'delay' in question.lower():
                 reg_col = self._find_column_by_name(main_data, ['registration', 'date_of_registration'])
                 decision_col = self._find_column_by_name(main_data, ['decision', 'decision_date'])
+                logger.info(f"Registration column: {reg_col}, Decision column: {decision_col}")
                 
                 if reg_col and decision_col:
                     delay_data = self._calculate_delays(main_data, reg_col, decision_col)
+                    logger.info(f"Delay data calculated: {len(delay_data)} values")
             
             if not year_col or delay_data is None:
+                logger.error(f"Missing data - year_col: {year_col}, delay_data: {delay_data is not None}")
                 return None
             
             # Group by year and calculate mean delay
@@ -139,12 +160,14 @@ class VisualizationGenerator:
             df_plot = df_plot.dropna()
             
             if df_plot.empty:
+                logger.error("Plot data is empty after dropna")
                 return None
             
             yearly_delays = df_plot.groupby('year')['delay'].mean()
+            logger.info(f"Yearly delays grouped: {len(yearly_delays)} years")
             
-            # Create the plot
-            fig, ax = plt.subplots(figsize=(10, 6))
+            # Create the plot with smaller size and lower DPI for file size optimization
+            fig, ax = plt.subplots(figsize=(8, 5))  # Reduced from (10,6)
             
             # Scatterplot
             ax.scatter(yearly_delays.index, yearly_delays.values, alpha=0.7, s=50)
@@ -169,7 +192,10 @@ class VisualizationGenerator:
             ax.grid(True, alpha=0.3)
             ax.legend()
             
-            return self._fig_to_base64(fig, max_size_kb=100)
+            logger.info("About to convert figure to base64...")
+            result = self._fig_to_base64(fig, max_size_kb=100)
+            logger.info(f"Base64 conversion result: {type(result)}, success: {result is not None}")
+            return result
             
         except Exception as e:
             logger.error(f"Failed to create time series plot: {e}")
@@ -232,24 +258,38 @@ class VisualizationGenerator:
     
     def _find_main_dataframe(self, data_context: Dict[str, Any]) -> Optional[pd.DataFrame]:
         """Find the main DataFrame in the data context"""
+        logger.info(f"Searching for main dataframe in keys: {list(data_context.keys())}")
+        
         for key, value in data_context.items():
             if isinstance(value, pd.DataFrame) and not value.empty:
+                logger.info(f"Found DataFrame at key '{key}' with shape {value.shape}")
                 return value
             elif isinstance(value, dict):
                 if 'movies_data' in value and isinstance(value['movies_data'], list):
-                    return pd.DataFrame(value['movies_data'])
+                    df = pd.DataFrame(value['movies_data'])
+                    logger.info(f"Found movies_data DataFrame with shape {df.shape}")
+                    return df
                 elif 'tables' in value and isinstance(value['tables'], list):
                     for table in value['tables']:
                         if 'data' in table:
                             df = pd.DataFrame(table['data'])
                             if not df.empty:
+                                logger.info(f"Found table DataFrame with shape {df.shape}")
                                 return df
         
-        # Check for SQL results
+        # Check for SQL results more specifically
         for key, value in data_context.items():
             if 'sql_result' in key and isinstance(value, pd.DataFrame):
+                logger.info(f"Found SQL result DataFrame at key '{key}' with shape {value.shape}")
                 return value
         
+        # Check for demo data
+        for key, value in data_context.items():
+            if 'demo_data' in key and isinstance(value, pd.DataFrame):
+                logger.info(f"Found demo data DataFrame at key '{key}' with shape {value.shape}")
+                return value
+        
+        logger.error("No main dataframe found in data context")
         return None
     
     def _find_year_column(self, df: pd.DataFrame) -> Optional[str]:
@@ -283,31 +323,50 @@ class VisualizationGenerator:
         """Convert matplotlib figure to base64 string with size constraint"""
         try:
             # Try reducing figure size progressively to meet size cap
-            sizes = [(10,6), (8,5), (7,4.5), (6,4), (5,3.5)]
+            sizes = [(8,5), (7,4), (6,3.5), (5,3), (4,2.5)]
+            dpi_values = [80, 72, 60, 50]  # Lower DPI values
+            
             last_image_data = None
-            for w, h in sizes:
-                buf = io.BytesIO()
-                fig.set_size_inches(w, h)
-                fig.savefig(buf, format='png', bbox_inches='tight', dpi=100)
-                buf.seek(0)
-                image_data = buf.read()
-                buf.close()
-                size_kb = len(image_data) / 1024
-                logger.info(f"Image size: {size_kb:.1f} KB at {w}x{h}")
-                if size_kb <= max_size_kb:
-                    encoded = base64.b64encode(image_data).decode('utf-8')
-                    plt.close(fig)
-                    return f"data:image/png;base64,{encoded}"
-                last_image_data = image_data
-            # Fallback to last attempt even if slightly over
-            encoded = base64.b64encode(last_image_data).decode('utf-8') if last_image_data else ''
-            plt.close(fig)
-            return f"data:image/png;base64,{encoded}"
+            for dpi in dpi_values:
+                for w, h in sizes:
+                    buf = io.BytesIO()
+                    fig.set_size_inches(w, h)
+                    # Use lower DPI for smaller files
+                    fig.savefig(buf, format='png', bbox_inches='tight', dpi=dpi, 
+                              facecolor='white')
+                    buf.seek(0)
+                    image_data = buf.read()
+                    buf.close()
+                    
+                    size_kb = len(image_data) / 1024
+                    logger.info(f"Image size: {size_kb:.1f} KB at {w}x{h}, DPI {dpi}")
+                    
+                    if size_kb <= max_size_kb:
+                        encoded = base64.b64encode(image_data).decode('utf-8')
+                        plt.close(fig)
+                        result = f"data:image/png;base64,{encoded}"
+                        logger.info(f"Successfully created base64 image: {len(result)} chars")
+                        return result
+                    last_image_data = image_data
+                    
+            # If still too large, use the smallest attempt
+            if last_image_data:
+                encoded = base64.b64encode(last_image_data).decode('utf-8')
+                plt.close(fig)
+                result = f"data:image/png;base64,{encoded}"
+                logger.info(f"Using fallback image: {len(result)} chars")
+                return result
+            else:
+                logger.error("No image data generated")
+                plt.close(fig)
+                return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="  # 1x1 transparent PNG
+                
         except Exception as e:
             logger.error(f"Failed to convert figure to base64: {e}")
             if 'fig' in locals():
                 plt.close(fig)
-            return None
+            # Return minimal base64 PNG as fallback
+            return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     
     def create_custom_plot(self, plot_type: str, data: pd.DataFrame, 
                           x_col: str, y_col: str = None, 

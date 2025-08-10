@@ -53,10 +53,11 @@ class DataAnalystAgent:
             'sql_queries': []
         }
         
-        # Check for web scraping requirements
+        # Check for web scraping requirements (only if explicitly asking to scrape)
+        scrape_keywords = ['scrape', 'crawl', 'extract from', 'get data from']
         url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+[^\s<>"{}|\\^`\[\].,;!?)]'
         urls = re.findall(url_pattern, questions_text)
-        if urls:
+        if urls and any(keyword in questions_text.lower() for keyword in scrape_keywords):
             plan['requires_web_scraping'] = True
             plan['urls_to_scrape'] = urls
         
@@ -79,49 +80,52 @@ class DataAnalystAgent:
             plan['output_format'] = 'json_object'
         
         # Extract individual questions
-        plan['questions'] = self._extract_questions(questions_text)
+        questions = self._extract_questions(questions_text)
+        logger.info(f"Extracted {len(questions)} questions: {[q[:50]+'...' for q in questions]}")
+        plan['questions'] = questions
         
         return plan
     
     def _extract_questions(self, text: str) -> List[str]:
         """Extract individual questions from the text.
-        Handles numbered lists even without a trailing '?' so visualization instructions are not dropped.
+        Prioritizes JSON format questions over other patterns.
         """
         questions: List[str] = []
         seen = set()
         
-        # 1) Numbered lines (capture even without '?')
-        for line in text.splitlines():
-            m = re.match(r"\s*(\d+)\.\s*(.+)", line)
-            if m:
-                q = m.group(2).strip()
-                # normalize whitespace
-                q = re.sub(r"\s+", " ", q)
-                if q and q not in seen:
+        # First, try to extract from JSON block containing questions
+        # Look for the JSON block that comes after "Answer the following questions"
+        questions_section_match = re.search(r'Answer the following questions.*?```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+        
+        if questions_section_match:
+            json_content = questions_section_match.group(1)
+            # Extract questions from JSON object format
+            json_question_pattern = r'"([^"]+)"\s*:\s*"[^"]*"'
+            for q in re.findall(json_question_pattern, json_content):
+                q = q.strip()
+                # Filter for actual questions
+                if (len(q) > 15 and q not in seen and 
+                    any(word in q.lower() for word in ['what', 'which', 'how', 'who', 'when', 'where', 'plot', 'show', 'calculate', 'find', 'create']) and
+                    'data:image/' not in q):
                     questions.append(q)
                     seen.add(q)
         
-        # 2) Explicit question sentences ending with '?'
-        numbered_pattern = r'\d+\.\s*([^?]*\?)'
-        for q in re.findall(numbered_pattern, text):
-            q = q.strip()
-            if q and q not in seen:
-                questions.append(q)
-                seen.add(q)
-        
-        # 3) Questions in JSON format
-        json_pattern = r'"([^"]*\?)":\s*"[^"]*"'
-        for q in re.findall(json_pattern, text):
-            q = q.strip()
-            if q and q not in seen:
-                questions.append(q)
-                seen.add(q)
-        
-        # 4) Fallback: any sentence containing '?' if still empty
+        # If no JSON questions found, try other methods
         if not questions:
-            for q in re.findall(r'([^.!?]*\?)+', text):
+            # 1) Numbered lines
+            for line in text.splitlines():
+                m = re.match(r"\s*(\d+)\.\s*(.+)", line)
+                if m:
+                    q = m.group(2).strip()
+                    if len(q) > 10 and q not in seen:
+                        questions.append(q)
+                        seen.add(q)
+            
+            # 2) Questions ending with '?'
+            question_pattern = r'([A-Z][^.!?]*\?)'
+            for q in re.findall(question_pattern, text):
                 q = q.strip()
-                if len(q) > 10 and q not in seen:
+                if len(q) > 20 and q not in seen:
                     questions.append(q)
                     seen.add(q)
         

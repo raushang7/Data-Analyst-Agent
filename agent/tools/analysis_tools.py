@@ -286,6 +286,9 @@ Answer:"""
                 delays = self._calculate_date_delays(main_data, reg_date_col, decision_date_col)
                 years = main_data[year_col]
                 
+                logger.info(f"Found columns: reg={reg_date_col}, decision={decision_date_col}, year={year_col}")
+                logger.info(f"Initial data size: {len(delays)} delays, {len(years)} years")
+                
                 # Filter by court if specified
                 if 'court=33_10' in question:
                     court_col = self._find_court_column(main_data)
@@ -293,16 +296,24 @@ Answer:"""
                         court_mask = main_data[court_col].astype(str).str.contains('33_10')
                         delays = delays[court_mask]
                         years = years[court_mask]
+                        logger.info(f"Filtered by court 33_10: {len(delays)} delays, {len(years)} years")
                 
                 # Remove NaN values
                 valid_mask = ~(delays.isna() | years.isna())
+                logger.info(f"Valid data points: {valid_mask.sum()} out of {len(valid_mask)}")
+                
                 if valid_mask.sum() > 1:
                     X = years[valid_mask].values.reshape(-1, 1)
                     y = delays[valid_mask].values
                     
+                    logger.info(f"Regression data - X shape: {X.shape}, y shape: {y.shape}")
+                    logger.info(f"X range: {X.min()} to {X.max()}, y range: {y.min()} to {y.max()}")
+                    
                     reg = LinearRegression()
                     reg.fit(X, y)
-                    return round(reg.coef_[0], 6)
+                    slope = round(reg.coef_[0], 6)
+                    logger.info(f"Regression slope: {slope}")
+                    return slope
         
         return 0.0
     
