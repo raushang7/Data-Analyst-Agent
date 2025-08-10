@@ -60,20 +60,25 @@ railway deploy
 ### 4. Environment Configuration
 
 Set these environment variables in production:
-- `PORT`: Server port (default: 8002)
+- `PORT`: Server port (default: 3000)
 - `DEBUG`: Set to "false" in production
 
 ### 5. Testing Your Deployment
 
 Use the provided test script:
 ```bash
-PORT=8002 python test_api.py
+PORT=3000 python test_api.py
 ```
 
 Or test manually:
 ```bash
 # Health check
-curl http://localhost:8002/health
+```bash
+curl http://localhost:3000/health
+```
+
+```bash
+curl "http://localhost:3000/api/" \
 
 # API test
 curl "http://localhost:8002/api/" \
@@ -91,7 +96,9 @@ For production:
 Example with gunicorn:
 ```bash
 pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:8002 app:app
+```bash
+gunicorn -w 4 -b 0.0.0.0:3000 app:app
+```
 ```
 
 ### 7. Monitoring

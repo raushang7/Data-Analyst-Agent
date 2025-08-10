@@ -42,9 +42,7 @@ data-analyst-agent/
 2. **Run the setup script**:
    ```bash
    chmod +x run.sh
-      ```bash
    PORT=3000 ./run.sh
-   ```
    ```
 
 ### Docker Deployment
@@ -183,14 +181,12 @@ The application includes comprehensive logging and error handling. Check logs fo
 For development testing:
 ```bash
 # Using ngrok
-```bash
 ngrok http 3000
 ```
 
-# Using cloudflared
 ```bash
+# Using cloudflared
 cloudflared tunnel --url http://localhost:3000
-```
 ```
 
 ## Performance Considerations

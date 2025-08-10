@@ -196,8 +196,6 @@ Answer:"""
             year_col = self._find_year_column(main_data)
             title_col = self._find_title_column(main_data)
             
-            print(f"DEBUG: year_col={year_col}, title_col={title_col}")
-            
             if year_col and title_col:
                 # Check if it's asking for earliest film with specific gross
                 if '$1.5 bn' in question:
@@ -214,19 +212,11 @@ Answer:"""
                     try:
                         # Convert year column to numeric and find minimum
                         years = pd.to_numeric(main_data[year_col], errors='coerce')
-                        print(f"DEBUG: years sample={years.head(5).tolist()}")
                         earliest_idx = years.idxmin()
-                        print(f"DEBUG: earliest_idx={earliest_idx}")
                         if pd.notna(years.iloc[earliest_idx]):
-                            result = str(main_data.loc[earliest_idx, title_col])
-                            print(f"DEBUG: earliest film result={result}")
-                            return result
-                        else:
-                            print("DEBUG: earliest year is NaN")
+                            return str(main_data.loc[earliest_idx, title_col])
                     except Exception as e:
-                        print(f"ERROR finding earliest film: {e}")
-            else:
-                print(f"DEBUG: Missing columns - year_col={year_col}, title_col={title_col}")
+                        logger.error(f"Error finding earliest film: {e}")
         
         elif 'disposed the most cases' in question.lower():
             # Analyze court data
