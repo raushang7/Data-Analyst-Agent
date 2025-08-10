@@ -1,5 +1,35 @@
-.venv/
-venv/
-env/
+
+# Python
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
 *.pyc
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Test files
+questions.txt
+data.csv
+image.png
