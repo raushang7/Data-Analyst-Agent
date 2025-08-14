@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Data Analyst Agent
 
 A powerful AI-powered data analysis API that can source, prepare, analyze, and visualize any data using Large Language Models.
@@ -210,3 +211,6 @@ MIT License - see LICENSE file for details.
 ## Support
 
 For issues and questions, please create an issue in the GitHub repository.
+=======
+# Data-Analyst-Agent
+>>>>>>> d4d6f0116474ee2a85b8c5dc82a9d784dd40b256
