@@ -1,0 +1,7 @@
+Scrape the list of highest grossing films from:
+https://en.wikipedia.org/wiki/List_of_highest-grossing_films
+Answer as JSON array:
+1. How many movies in the dataset were released before 2000?
+2. What is the title of the earliest film in the dataset?
+3. What is the correlation coefficient between Rank and Peak positions?
+4. Create a scatterplot of Rank vs Peak and return as base64 PNG (<100KB).
