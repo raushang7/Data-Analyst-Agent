@@ -27,7 +27,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Initialize the agent
 agent = DataAnalystAgent()
 
-@app.route('/', methods=['GET'])
+@app.route('/analyze', methods=['GET'])
 def home():
     """Home page with API information"""
     return jsonify({
@@ -52,7 +52,8 @@ def health_check():
         'service': 'data-analyst-agent'
     })
 
-@app.route('/api/', methods=['POST'])
+
+@app.route("/analyze", methods=["POST"])
 def analyze_data():
     """Main API endpoint for data analysis"""
     try:
