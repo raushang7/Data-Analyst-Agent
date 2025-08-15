@@ -53,7 +53,7 @@ def health_check():
     })
 
 
-@app.route("/analyze", methods=["POST"])
+@app.route("/api/analyze", methods=["POST"])
 def analyze_data():
     """Main API endpoint for data analysis"""
     try:
